@@ -1,46 +1,50 @@
-const express = require('express');
-const router = express.Router();
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+// routes/auth.js
+const express = require('express')
+const bcrypt = require('bcrypt')
+const jwt = require('jsonwebtoken')
+const User = require('../models/User')
+const authenticateToken = require('../middleware/authMiddleware')
+const requireRole = require('../middleware/roleMiddleware')
 
-// ===== Signup =====
+const router = express.Router()
+
+// POST /signup
 router.post('/signup', async (req, res) => {
-    const { username, email, password } = req.body;
+  const { username, email, password, role } = req.body
+  const hashedPassword = await bcrypt.hash(password, 10)
 
-    try {
-        const existingUser = await User.findOne({ username });
-        if (existingUser) return res.status(400).json({ msg: 'Tên đăng nhập đã tồn tại' });
+  const newUser = new User({
+    username,
+    email,
+    password: hashedPassword,
+    role: role || 'user'
+  })
 
-        const hashedPassword = await bcrypt.hash(password, 10);
+  await newUser.save()
+  res.status(201).json({ message: 'User registered successfully' })
+})
 
-        const user = new User({ username, email, password: hashedPassword });
-        await user.save();
-
-        res.status(201).json({ msg: 'Tạo tài khoản thành công' });
-    } catch (err) {
-        res.status(500).json({ msg: 'Lỗi server' });
-    }
-});
-
-// ===== Login =====
+// POST /login
 router.post('/login', async (req, res) => {
-    const { username, password } = req.body;
+  const { username, password } = req.body
+  const user = await User.findOne({ username })
 
-    try {
-        const user = await User.findOne({ username });
-        if (!user) return res.status(400).json({ msg: 'Sai tên đăng nhập hoặc mật khẩu' });
+  if (!user || !(await bcrypt.compare(password, user.password))) {
+    return res.status(401).json({ message: 'Invalid credentials' })
+  }
 
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) return res.status(400).json({ msg: 'Sai tên đăng nhập hoặc mật khẩu' });
+  const token = jwt.sign(
+    { id: user._id, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: '1h' }
+  )
 
-        // Optional: tạo token
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
+  res.json({ token, role: user.role })
+})
 
-        res.json({ msg: 'Đăng nhập thành công', token });
-    } catch (err) {
-        res.status(500).json({ msg: 'Lỗi server' });
-    }
-});
+// GET /admin-only
+router.get('/admin-only', authenticateToken, requireRole('admin'), (req, res) => {
+  res.json({ message: 'Welcome, Admin!' })
+})
 
-module.exports = router;
+module.exports = router
