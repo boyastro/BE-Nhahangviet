@@ -4,3 +4,5 @@ npm install express mongoose bcryptjs bcrypt jsonwebtoken cors dotenv
 2. node server.js
 user thanh123
 pass 123456
+services.msc
+MongoDB server start
