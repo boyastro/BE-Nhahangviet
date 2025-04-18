@@ -9,7 +9,12 @@ const bookingSchema = new mongoose.Schema({
     time: String,
     people: Number,
     note: String,
-    selectedDishes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'MenuItem' }]
+    selectedDishes: [
+      {
+        dishId: { type: mongoose.Schema.Types.ObjectId, ref: 'MenuItem', required: true },
+        quantity: { type: Number, required: true, default: 1 }
+      }
+    ]
   });
 
 const Booking = mongoose.model('Booking', bookingSchema);
