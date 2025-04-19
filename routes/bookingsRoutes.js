@@ -221,4 +221,28 @@ router.delete("/:bookingId", authenticateToken, async (req, res) => {
   }
 });
 
+// ==================== Cập nhật trạng thái thanh toán (PATCH)
+router.patch("/:bookingId/pay", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const bookingId = req.params.bookingId;
+
+    const booking = await Booking.findOne({ _id: bookingId, userId });
+
+    if (!booking) {
+      return res
+        .status(404)
+        .json({ message: "Không tìm thấy đơn đặt bàn để thanh toán." });
+    }
+
+    booking.isPaid = true;
+    await booking.save();
+
+    res.json({ message: "Thanh toán thành công!", booking });
+  } catch (err) {
+    console.error("❌ Lỗi khi cập nhật thanh toán:", err.message);
+    res.status(500).json({ message: "Lỗi khi thanh toán." });
+  }
+});
+
 module.exports = router;
