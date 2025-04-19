@@ -1,24 +1,42 @@
-const express = require('express');
+// routes/bookingRoutes.js
+const express = require("express");
 const router = express.Router();
-const Booking = require('../models/Booking');
-const authenticateToken = require('../middleware/authMiddleware');
+const Booking = require("../models/Booking");
+const MenuItem = require("../models/MenuItem");
+const authenticateToken = require("../middleware/authMiddleware");
 
-// Đặt bàn (bao gồm lưu thông tin userId)
-router.post('/', authenticateToken, async (req, res) => {
+// ==================== Tính tổng tiền
+const calculateTotalAmount = async (selectedDishes) => {
+  let total = 0;
+  for (const item of selectedDishes) {
+    const menuItem = await MenuItem.findById(item.dishId);
+    if (menuItem) {
+      total += menuItem.price * item.quantity;
+    }
+  }
+  return total;
+};
+
+// ==================== Đặt bàn (POST)
+router.post("/", authenticateToken, async (req, res) => {
   try {
     const { name, phone, date, time, people, note, selectedDishes } = req.body;
 
     if (!name || !phone || !date || !time || !people) {
-      return res.status(400).json({ message: 'Vui lòng cung cấp đầy đủ thông tin.' });
+      return res
+        .status(400)
+        .json({ message: "Vui lòng cung cấp đầy đủ thông tin." });
     }
 
     const userId = req.user.id;
 
-    // Validate món ăn
-    const formattedDishes = selectedDishes?.map(dish => ({
-      dishId: dish.dishId,
-      quantity: dish.quantity || 1,
-    })) || [];
+    const formattedDishes =
+      selectedDishes?.map((dish) => ({
+        dishId: dish.dishId,
+        quantity: dish.quantity || 1,
+      })) || [];
+
+    const totalAmount = await calculateTotalAmount(formattedDishes);
 
     const newBooking = new Booking({
       userId,
@@ -29,74 +47,94 @@ router.post('/', authenticateToken, async (req, res) => {
       people,
       note,
       selectedDishes: formattedDishes,
+      totalAmount,
     });
 
     await newBooking.save();
-    res.status(201).json({ message: 'Đặt bàn thành công!', booking: newBooking });
+    res
+      .status(201)
+      .json({ message: "Đặt bàn thành công!", booking: newBooking });
   } catch (err) {
-    console.error('❌ Lỗi khi tạo đơn đặt bàn:', err.message);
-    res.status(500).json({ message: 'Lỗi khi tạo đơn đặt bàn. Vui lòng thử lại sau.' });
+    console.error("❌ Lỗi khi tạo đơn đặt bàn:", err.message);
+    res
+      .status(500)
+      .json({ message: "Lỗi khi tạo đơn đặt bàn. Vui lòng thử lại sau." });
   }
 });
 
-
-// Lấy lịch sử đặt bàn của người dùng (chỉ lấy đặt bàn của người dùng đã đăng nhập)
-router.get('/history', authenticateToken, async (req, res) => {
+// ==================== Lịch sử đặt bàn (GET)
+router.get("/history", authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
     const bookings = await Booking.find({ userId })
       .sort({ date: -1 })
-      .populate('selectedDishes.dishId'); // lấy thông tin món ăn chi tiết
+      .populate("selectedDishes.dishId");
 
     res.json(bookings);
   } catch (err) {
-    console.error('❌ Lỗi khi lấy lịch sử đặt bàn:', err.message);
-    res.status(500).json({ message: 'Lỗi khi lấy lịch sử đặt bàn' });
+    console.error("❌ Lỗi khi lấy lịch sử đặt bàn:", err.message);
+    res.status(500).json({ message: "Lỗi khi lấy lịch sử đặt bàn" });
   }
 });
 
-
-// Chỉnh sửa thông tin đặt bàn (ngày, giờ, số người, ghi chú, ... )
-router.put('/:bookingId', authenticateToken, async (req, res) => {
+// ==================== Chỉnh sửa đặt bàn (PUT)
+router.put("/:bookingId", authenticateToken, async (req, res) => {
   try {
     const { name, phone, date, time, people, note, selectedDishes } = req.body;
     const userId = req.user.id;
 
     if (!name || !phone || !date || !time || !people) {
-      return res.status(400).json({ message: 'Vui lòng cung cấp đầy đủ thông tin.' });
+      return res
+        .status(400)
+        .json({ message: "Vui lòng cung cấp đầy đủ thông tin." });
     }
 
-    const formattedDishes = selectedDishes?.map(dish => ({
-      dishId: dish.dishId,
-      quantity: dish.quantity || 1,
-    })) || [];
+    const formattedDishes =
+      selectedDishes?.map((dish) => ({
+        dishId: dish.dishId,
+        quantity: dish.quantity || 1,
+      })) || [];
+
+    const totalAmount = await calculateTotalAmount(formattedDishes);
 
     const updatedBooking = await Booking.findOneAndUpdate(
       { _id: req.params.bookingId, userId },
-      { name, phone, date, time, people, note, selectedDishes: formattedDishes },
+      {
+        name,
+        phone,
+        date,
+        time,
+        people,
+        note,
+        selectedDishes: formattedDishes,
+        totalAmount,
+      },
       { new: true }
     );
 
     if (!updatedBooking) {
-      return res.status(404).json({ message: 'Không tìm thấy đặt bàn cần chỉnh sửa.' });
+      return res
+        .status(404)
+        .json({ message: "Không tìm thấy đặt bàn cần chỉnh sửa." });
     }
 
-    res.json({ message: 'Cập nhật thành công!', booking: updatedBooking });
+    res.json({ message: "Cập nhật thành công!", booking: updatedBooking });
   } catch (err) {
-    console.error('❌ Lỗi khi chỉnh sửa đặt bàn:', err.message);
-    res.status(500).json({ message: 'Lỗi khi chỉnh sửa đặt bàn.' });
+    console.error("❌ Lỗi khi chỉnh sửa đặt bàn:", err.message);
+    res.status(500).json({ message: "Lỗi khi chỉnh sửa đặt bàn." });
   }
 });
 
-
-// Thêm món ăn vào đặt bàn
-router.put('/:bookingId/addDish', authenticateToken, async (req, res) => {
+// ==================== Thêm món ăn (PUT)
+router.put("/:bookingId/addDish", authenticateToken, async (req, res) => {
   try {
     const { dishId, quantity } = req.body;
     const userId = req.user.id;
 
     if (!dishId || !quantity) {
-      return res.status(400).json({ message: 'Vui lòng cung cấp dishId và quantity.' });
+      return res
+        .status(400)
+        .json({ message: "Vui lòng cung cấp dishId và quantity." });
     }
 
     const updatedBooking = await Booking.findOneAndUpdate(
@@ -106,25 +144,34 @@ router.put('/:bookingId/addDish', authenticateToken, async (req, res) => {
     );
 
     if (!updatedBooking) {
-      return res.status(404).json({ message: 'Không tìm thấy đặt bàn cần thêm món.' });
+      return res
+        .status(404)
+        .json({ message: "Không tìm thấy đặt bàn cần thêm món." });
     }
 
-    res.json({ message: 'Thêm món ăn thành công!', booking: updatedBooking });
+    const totalAmount = await calculateTotalAmount(
+      updatedBooking.selectedDishes
+    );
+    updatedBooking.totalAmount = totalAmount;
+    await updatedBooking.save();
+
+    res.json({ message: "Thêm món ăn thành công!", booking: updatedBooking });
   } catch (err) {
-    console.error('❌ Lỗi khi thêm món ăn:', err.message);
-    res.status(500).json({ message: 'Lỗi khi thêm món ăn.' });
+    console.error("❌ Lỗi khi thêm món ăn:", err.message);
+    res.status(500).json({ message: "Lỗi khi thêm món ăn." });
   }
 });
 
-
-// Xóa món ăn khỏi đặt bàn
-router.put('/:bookingId/removeDish', authenticateToken, async (req, res) => {
+// ==================== Xóa món ăn (PUT)
+router.put("/:bookingId/removeDish", authenticateToken, async (req, res) => {
   try {
     const { dishId } = req.body;
     const userId = req.user.id;
 
     if (!dishId) {
-      return res.status(400).json({ message: 'Vui lòng cung cấp dishId để xóa.' });
+      return res
+        .status(400)
+        .json({ message: "Vui lòng cung cấp dishId để xóa." });
     }
 
     const updatedBooking = await Booking.findOneAndUpdate(
@@ -134,31 +181,43 @@ router.put('/:bookingId/removeDish', authenticateToken, async (req, res) => {
     );
 
     if (!updatedBooking) {
-      return res.status(404).json({ message: 'Không tìm thấy đặt bàn cần xóa món.' });
+      return res
+        .status(404)
+        .json({ message: "Không tìm thấy đặt bàn cần xóa món." });
     }
 
-    res.json({ message: 'Xóa món ăn thành công!', booking: updatedBooking });
+    const totalAmount = await calculateTotalAmount(
+      updatedBooking.selectedDishes
+    );
+    updatedBooking.totalAmount = totalAmount;
+    await updatedBooking.save();
+
+    res.json({ message: "Xóa món ăn thành công!", booking: updatedBooking });
   } catch (err) {
-    console.error('❌ Lỗi khi xóa món ăn:', err.message);
-    res.status(500).json({ message: 'Lỗi khi xóa món ăn.' });
+    console.error("❌ Lỗi khi xóa món ăn:", err.message);
+    res.status(500).json({ message: "Lỗi khi xóa món ăn." });
   }
 });
 
-
-// Xóa đặt bàn
-router.delete('/:bookingId', authenticateToken, async (req, res) => {
+// ==================== Xóa đặt bàn (DELETE)
+router.delete("/:bookingId", authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
-    const deletedBooking = await Booking.findOneAndDelete({ _id: req.params.bookingId, userId });
+    const deletedBooking = await Booking.findOneAndDelete({
+      _id: req.params.bookingId,
+      userId,
+    });
 
     if (!deletedBooking) {
-      return res.status(404).json({ message: 'Không tìm thấy đặt bàn cần xóa.' });
+      return res
+        .status(404)
+        .json({ message: "Không tìm thấy đặt bàn cần xóa." });
     }
 
-    res.json({ message: 'Đặt bàn đã được xóa thành công.' });
+    res.json({ message: "Đặt bàn đã được xóa thành công." });
   } catch (err) {
-    console.error('❌ Lỗi khi xóa đặt bàn:', err.message);
-    res.status(500).json({ message: 'Lỗi khi xóa đặt bàn.' });
+    console.error("❌ Lỗi khi xóa đặt bàn:", err.message);
+    res.status(500).json({ message: "Lỗi khi xóa đặt bàn." });
   }
 });
 
