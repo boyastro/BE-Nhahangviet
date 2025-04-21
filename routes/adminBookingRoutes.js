@@ -80,4 +80,39 @@ router.delete(
   }
 );
 
+// ==================== Cập nhật đơn đặt bàn (Admin)
+router.patch(
+  "/:bookingId",
+  authenticateToken,
+  authorizeAdmin("admin"),
+  async (req, res) => {
+    try {
+      const { date, time, people, note, selectedDishes } = req.body;
+
+      const booking = await Booking.findById(req.params.bookingId);
+
+      if (!booking) {
+        return res.status(404).json({ message: "Không tìm thấy đơn đặt bàn." });
+      }
+
+      // Cập nhật các trường
+      if (date) booking.date = date;
+      if (time) booking.time = time;
+      if (people) booking.people = people;
+      if (note !== undefined) booking.note = note;
+      if (selectedDishes) booking.selectedDishes = selectedDishes;
+
+      const updated = await booking.save();
+
+      res.json({
+        message: "Cập nhật đơn đặt bàn thành công!",
+        booking: updated,
+      });
+    } catch (err) {
+      console.error("❌ Lỗi khi cập nhật đơn đặt bàn:", err.message);
+      res.status(500).json({ message: "Lỗi khi cập nhật đơn đặt bàn." });
+    }
+  }
+);
+
 module.exports = router;
