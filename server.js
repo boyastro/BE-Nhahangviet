@@ -6,7 +6,7 @@ const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
 const menuRoutes = require("./routes/menuRoutes");
 const bookingsRoutes = require("./routes/bookingsRoutes");
-const blogRoutes = require("./routes/BlogRoutes");
+const blogRoutes = require("./routes/blogRoutes");
 const adminbookingsRoutes = require("./routes/adminBookingRoutes");
 const cors = require("cors");
 
