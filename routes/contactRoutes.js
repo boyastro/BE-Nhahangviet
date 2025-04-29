@@ -25,4 +25,23 @@ router.get("/", async (req, res) => {
     res.status(500).json({ message: "Error fetching contacts" });
   }
 });
+
+// DELETE route để xoá thông tin liên hệ theo ID
+router.delete("/:id", async (req, res) => {
+  const { id } = req.params; // Lấy ID từ params
+
+  try {
+    const contact = await Contact.findByIdAndDelete(id); // Xoá contact theo ID
+
+    // Nếu không tìm thấy contact
+    if (!contact) {
+      return res.status(404).json({ message: "Contact not found" });
+    }
+
+    res.status(200).json({ message: "Contact deleted successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error deleting contact", error });
+  }
+});
 module.exports = router;
