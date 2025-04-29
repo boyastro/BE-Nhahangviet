@@ -5,6 +5,19 @@ const Booking = require("../models/Booking");
 const MenuItem = require("../models/MenuItem");
 const authenticateToken = require("../middleware/authMiddleware");
 
+// POST request to create a new booking
+router.post("/", async (req, res) => {
+  const { date, time, name, phone, person } = req.body;
+
+  try {
+    const newBooking = new Booking({ date, time, name, phone, person });
+    const savedBooking = await newBooking.save();
+    res.status(201).json(savedBooking);
+  } catch (error) {
+    res.status(500).json({ message: "Error creating booking", error });
+  }
+});
+
 // ==================== Tính tổng tiền
 const calculateTotalAmount = async (selectedDishes) => {
   let total = 0;
