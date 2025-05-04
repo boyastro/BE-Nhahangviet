@@ -4,20 +4,7 @@ const router = express.Router();
 const Booking = require("../models/Booking");
 const MenuItem = require("../models/MenuItem");
 const authenticateToken = require("../middleware/authMiddleware");
-
-// POST request to create a new booking
-router.post("/", async (req, res) => {
-  const { date, time, name, phone, person } = req.body;
-
-  try {
-    const newBooking = new Booking({ date, time, name, phone, person });
-    const savedBooking = await newBooking.save();
-    res.status(201).json(savedBooking);
-  } catch (error) {
-    res.status(500).json({ message: "Error creating booking", error });
-  }
-});
-
+const authenticateTokenOptional = require("../middleware/authenticateTokenOptional");
 // ==================== Tính tổng tiền
 const calculateTotalAmount = async (selectedDishes) => {
   let total = 0;
@@ -31,17 +18,21 @@ const calculateTotalAmount = async (selectedDishes) => {
 };
 
 // ==================== Đặt bàn (POST)
-router.post("/", authenticateToken, async (req, res) => {
+// ==================== Đặt bàn (POST)
+router.post("/", authenticateTokenOptional, async (req, res) => {
   try {
-    const { name, phone, date, time, people, note, selectedDishes } = req.body;
+    const { name, phone, date, time, people, person, note, selectedDishes } =
+      req.body;
 
-    if (!name || !phone || !date || !time || !people) {
+    const finalPeople = people || person; // hỗ trợ cả "people" hoặc "person"
+
+    if (!name || !phone || !date || !time || !finalPeople) {
       return res
         .status(400)
         .json({ message: "Vui lòng cung cấp đầy đủ thông tin." });
     }
 
-    const userId = req.user.id;
+    const userId = req.user?.id || null; // Có thể không có user nếu là public booking
 
     const formattedDishes =
       selectedDishes?.map((dish) => ({
@@ -49,7 +40,10 @@ router.post("/", authenticateToken, async (req, res) => {
         quantity: dish.quantity || 1,
       })) || [];
 
-    const totalAmount = await calculateTotalAmount(formattedDishes);
+    let totalAmount = 0;
+    if (formattedDishes.length > 0) {
+      totalAmount = await calculateTotalAmount(formattedDishes);
+    }
 
     const newBooking = new Booking({
       userId,
@@ -57,16 +51,16 @@ router.post("/", authenticateToken, async (req, res) => {
       phone,
       date,
       time,
-      people,
+      people: finalPeople,
       note,
       selectedDishes: formattedDishes,
       totalAmount,
     });
 
-    await newBooking.save();
+    const savedBooking = await newBooking.save();
     res
       .status(201)
-      .json({ message: "Đặt bàn thành công!", booking: newBooking });
+      .json({ message: "Đặt bàn thành công!", booking: savedBooking });
   } catch (err) {
     console.error("❌ Lỗi khi tạo đơn đặt bàn:", err.message);
     res
