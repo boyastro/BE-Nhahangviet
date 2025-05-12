@@ -44,7 +44,8 @@ router.patch(
       }
 
       // Cập nhật trạng thái thanh toán
-      booking.isPaid = true;
+      const { isPaid } = req.body;
+      booking.isPaid = typeof isPaid === "boolean" ? isPaid : true;
       await booking.save();
 
       res.json({ message: "Cập nhật thanh toán thành công!", booking });
