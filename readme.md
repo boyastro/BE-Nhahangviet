@@ -6,12 +6,17 @@
 
 Trước khi chạy dự án, cần cài đặt các gói phụ thuộc:
 
-````bash
+```bash
 npm install
+```
+
+Khởi động Server:
 
 ```bash
 node server.js
 
-````
+```
 
+```
 Chương trình sẽ kết nối với database và lắng nghe ở cổng local host port 5000
+```
