@@ -17,6 +17,4 @@ node server.js
 
 ```
 
-```
 Chương trình sẽ kết nối với database và lắng nghe ở cổng local host port 5000
-```
