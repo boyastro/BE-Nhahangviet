@@ -10,7 +10,7 @@ Trước khi chạy dự án, cần cài đặt các gói phụ thuộc:
 npm install
 ```
 
-Khởi động Server:
+## Khởi động Server
 
 ```bash
 node server.js
